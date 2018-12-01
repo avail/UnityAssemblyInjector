@@ -15,7 +15,11 @@
 #include "deps/include/MinHook.h"
 #include "Utils.h"
 
-#pragma comment(lib, "deps/lib/MinHook.lib")
+#if _M_IX86
+#pragma comment(lib, "deps/lib/MinHook-x86.lib")
+#else
+#pragma comment(lib, "deps/lib/MinHook-x64.lib")
+#endif
 
 #ifdef _DEBUG
 #define DBGPRINT(kwszDebugFormatString, ...) _DBGPRINT(__FUNCTIONW__, __LINE__, kwszDebugFormatString, __VA_ARGS__)

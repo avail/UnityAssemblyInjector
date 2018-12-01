@@ -72,7 +72,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)Build\</OutDir>
     <IntDir>$(SolutionDir)obj\$(Configuration)\</IntDir>
-    <TargetName>VERSION</TargetName>
+    <TargetName>VERSION-$(PlatformTarget)</TargetName>
     <TargetExt>.dll</TargetExt>
     <IncludePath>$(ProjectDir)deps\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)deps\lib;$(LibraryPath)</LibraryPath>
@@ -80,7 +80,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)Build\</OutDir>
     <IntDir>$(SolutionDir)obj\$(Configuration)\</IntDir>
-    <TargetName>VERSION</TargetName>
+    <TargetName>VERSION-$(PlatformTarget)</TargetName>
     <TargetExt>.dll</TargetExt>
     <IncludePath>$(ProjectDir)deps\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)deps\lib;$(LibraryPath)</LibraryPath>
@@ -88,7 +88,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)Build\</OutDir>
     <IntDir>$(SolutionDir)obj\$(Configuration)\</IntDir>
-    <TargetName>VERSION</TargetName>
+    <TargetName>VERSION-$(PlatformTarget)</TargetName>
     <TargetExt>.dll</TargetExt>
     <IncludePath>$(ProjectDir)deps\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)deps\lib;$(LibraryPath)</LibraryPath>
@@ -96,7 +96,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)Build\</OutDir>
     <IntDir>$(SolutionDir)obj\$(Configuration)\</IntDir>
-    <TargetName>VERSION</TargetName>
+    <TargetName>VERSION-$(PlatformTarget)</TargetName>
     <TargetExt>.dll</TargetExt>
     <IncludePath>$(ProjectDir)deps\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)deps\lib;$(LibraryPath)</LibraryPath>
