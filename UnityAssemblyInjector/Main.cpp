@@ -249,7 +249,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 			monoHandle = LoadLibraryA(monoPath);
 		};
 
-		LoadMono("EmbedRuntime\\Mono");
+		LoadMono("Mono\\EmbedRuntime");
 		
 		if (!monoHandle)
 		{
