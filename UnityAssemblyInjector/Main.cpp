@@ -242,19 +242,47 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 			}
 		}
 
-		auto LoadMono = [&](std::string path)
-		{
-			const char* monoPath = va("%s\\%s\\mono.dll", dataDirectory.c_str(), path.c_str());
-
-			monoHandle = LoadLibraryA(monoPath);
+		std::vector<std::string> searchPaths = {
+			"Mono",
+			"Mono\\EmbedRuntime",
+			"MonoBleedingEdge\\EmbedRuntime"
 		};
 
-		LoadMono("Mono\\EmbedRuntime");
-		
-		if (!monoHandle)
+		std::vector<std::string> searchNames = {
+			"mono.dll", // older mono builds
+			"mono-2.0-bdwgc.dll", // unity gc mono builds
+			"mono-2.0-sgen.dll", // oficial gc mono builds
+			"mono-2.0-boehm.dll" // official mono builds with boehm's gc
+		};
+
+		std::string monoPath = "";
+
+		for (auto& path : searchPaths)
 		{
-			LoadMono("Mono");
+			for (auto& name : searchNames)
+			{
+				std::string tryPath = va("%s\\%s\\%s", dataDirectory.c_str(), path.c_str(), name.c_str());
+
+				if (std::filesystem::exists(tryPath))
+				{
+					monoPath = tryPath;
+					break;
+				}
+			}
+
+			if (monoPath != "")
+			{
+				break;
+			}
 		}
+
+		if (monoPath == "")
+		{
+			DBGPRINT(L"Couldn't find mono.dll");
+			return false;
+		}
+
+		monoHandle = LoadLibraryA(monoPath.c_str());
 
 		if (!monoHandle)
 		{
