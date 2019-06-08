@@ -172,7 +172,7 @@ void split(const std::string &s, char delim, Out result) {
 	}
 }
 
-std::vector<std::string> split(const std::string &s, char delim) {
+std::vector<std::string> split(const std::string& s, char delim) {
 	std::vector<std::string> elems;
 
 	split(s, delim, std::back_inserter(elems));
@@ -195,13 +195,13 @@ std::vector<std::string> get_directories(const std::string& startDirectory)
 	return ret;
 }
 
-bool ends_with(std::string const &fullString, std::string const &ending)
+bool ends_with(std::string const& fullString, std::string const& ending)
 {
 	if (fullString.length() >= ending.length())
 	{
 		return (0 == fullString.compare(fullString.length() - ending.length(), ending.length(), ending));
 	}
-	else 
+	else
 	{
 		return false;
 	}
@@ -256,16 +256,27 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 		};
 
 		std::string monoPath = "";
+		std::string assemblyName = "";
 
 		for (auto& path : searchPaths)
 		{
 			for (auto& name : searchNames)
 			{
-				std::string tryPath = va("%s\\%s\\%s", dataDirectory.c_str(), path.c_str(), name.c_str());
+				std::string tryPath = va("%s\\%s", path.c_str(), name.c_str());
 
 				if (std::filesystem::exists(tryPath))
 				{
 					monoPath = tryPath;
+					assemblyName = name;
+					break;
+				}
+
+				std::string tryPath2 = va("%s\\%s", dataDirectory.c_str(), tryPath.c_str());
+
+				if (std::filesystem::exists(tryPath))
+				{
+					monoPath = tryPath2;
+					assemblyName = name;
 					break;
 				}
 			}
@@ -291,7 +302,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 		}
 
 		MH_Initialize();
-		MH_CreateHookApi(L"mono.dll", "mono_assembly_load_from_full", mono_assembly_load_from_full_hk, (void**)&mono_assembly_load_from_full);
+		MH_CreateHookApi(ToWide(assemblyName).c_str(), "mono_assembly_load_from_full", mono_assembly_load_from_full_hk, (void**)&mono_assembly_load_from_full);
 		MH_EnableHook(MH_ALL_HOOKS);
 	}
 
