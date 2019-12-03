@@ -1,9 +1,10 @@
 #define WIN32_LEAN_AND_MEAN 1
-
+#include "Utils.h"
 #include <windows.h>
 #include <SDKDDKVer.h>
 #include <array>
 
+#if not defined(INJECT_TO_UE4)
 #pragma comment(linker, "/DLL")
 
 HINSTANCE m_origModule;
@@ -121,3 +122,4 @@ extern "C" BOOL WINAPI VerQueryValueW(LPCVOID pBlock, LPCWSTR lpSubBlock, LPVOID
 {
 	EXPORT(VerQueryValueW, pBlock, lpSubBlock, lplpBuffer, puLen);
 }
+#endif
