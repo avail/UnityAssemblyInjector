@@ -15,6 +15,8 @@
 #include "deps/include/MinHook.h"
 #include "Utils.h"
 
+#define INJECT_TO_GAMEASSEMBLY
+
 #if _M_IX86
 #pragma comment(lib, "deps/lib/MinHook-x86.lib")
 #else
@@ -149,37 +151,20 @@ static void OutputExceptionDetails(void* exc)
 }
 
 #if not defined(INJECT_TO_GAMEASSEMBLY)
-void* mono_assembly_load_from_full_hk(void* image, const char* fname, void* status, bool refonly)
+
+bool readyForInvoke = false;
+bool wasReady = false;
+
+void* mono_runtime_invoke_hk(PVOID method, PVOID instance, PVOID* params, PVOID exc)
 {
-	void* val = mono_assembly_load_from_full(image, fname, status, refonly);
-
-	if (strstr(fname, "Assembly-CSharp.dll"))
+	if (readyForInvoke && !wasReady)
 	{
-		DBGPRINT(L"Assembly-CSharp.dll is loading...");
-
-		mono_security_get_mode = (lp_mono_security_get_mode)GetProcAddress(monoHandle, "mono_security_get_mode");
-		mono_security_set_mode = (lp_mono_security_set_mode)GetProcAddress(monoHandle, "mono_security_set_mode");
-		mono_domain_get = (lp_mono_domain_get)GetProcAddress(monoHandle, "mono_domain_get");
-		mono_domain_assembly_open = (lp_mono_domain_assembly_open)GetProcAddress(monoHandle, "mono_domain_assembly_open");
-		mono_assembly_get_image = (lp_mono_assembly_get_image)GetProcAddress(monoHandle, "mono_assembly_get_image");
-		mono_class_from_name = (lp_mono_class_from_name)GetProcAddress(monoHandle, "mono_class_from_name");
-		mono_class_get_method_from_name = (lp_mono_class_get_method_from_name)GetProcAddress(monoHandle, "mono_class_get_method_from_name");
-		mono_runtime_invoke = (lp_mono_runtime_invoke)GetProcAddress(monoHandle, "mono_runtime_invoke");
-		mono_thread_attach = (lp_mono_thread_attach)GetProcAddress(monoHandle, "mono_thread_attach");
-		mono_get_root_domain = (lp_mono_get_root_domain)GetProcAddress(monoHandle, "mono_get_root_domain");
-		mono_method_desc_search_in_image = (lp_mono_method_desc_search_in_image)GetProcAddress(monoHandle, "mono_method_desc_search_in_image");
-		mono_method_desc_free = (lp_mono_method_desc_free)GetProcAddress(monoHandle, "mono_method_desc_free");
-		mono_method_desc_new = (lp_mono_method_desc_new)GetProcAddress(monoHandle, "mono_method_desc_new");
-
-		mono_object_get_class = (lp_mono_object_get_class)GetProcAddress(monoHandle, "mono_object_get_class");
-		mono_object_to_string = (lp_mono_object_to_string)GetProcAddress(monoHandle, "mono_object_to_string");
-		mono_class_get_property_from_name = (lp_mono_class_get_property_from_name)GetProcAddress(monoHandle, "mono_class_get_property_from_name");
-		mono_property_get_get_method = (lp_mono_property_get_get_method)GetProcAddress(monoHandle, "mono_property_get_get_method");
-		mono_string_to_utf8 = (lp_mono_string_to_utf8)GetProcAddress(monoHandle, "mono_string_to_utf8");
+		readyForInvoke = false;
+		wasReady = true;
 
 		auto rootDomain = mono_get_root_domain();
 
-		auto Start = [&](std::string name, std::string entryPoint)
+		auto Exec = [&](std::string name, std::string entryPoint)
 		{
 			auto scriptManagerAssembly = mono_domain_assembly_open(rootDomain, (PCHAR)(name.c_str()));
 
@@ -188,15 +173,15 @@ void* mono_assembly_load_from_full_hk(void* image, const char* fname, void* stat
 				DBGPRINT(L"[%s] Failed to load.", ToWide(name).c_str());
 				return;
 			}
-
+			
 			auto scriptManagerImage = mono_assembly_get_image(scriptManagerAssembly);
 
 			bool methodSearchSuccess = true;
 			void* description;
-
+			
 			void* rtInitMethod;
 			method_search(entryPoint.c_str(), rtInitMethod);
-
+			
 			if (!methodSearchSuccess)
 			{
 				DBGPRINT(L"[%s] Couldn't find entry point %s.", ToWide(name).c_str(), ToWide(entryPoint).c_str());
@@ -218,20 +203,56 @@ void* mono_assembly_load_from_full_hk(void* image, const char* fname, void* stat
 
 		for (auto& library : dllsToLoad)
 		{
-			Start(library.first, library.second);
+			Exec(library.first, library.second);
 		}
 	}
 
-	return val;
+	return mono_runtime_invoke(method, instance, params, exc);
+}
+
+void* mono_assembly_load_from_full_hk(void* image, const char* fname, void* status, bool refonly)
+{
+	static bool isSet = false;
+
+
+	if (!isSet)
+	{
+		isSet = true;
+
+		mono_security_get_mode = (lp_mono_security_get_mode)GetProcAddress(monoHandle, "mono_security_get_mode");
+		mono_security_set_mode = (lp_mono_security_set_mode)GetProcAddress(monoHandle, "mono_security_set_mode");
+		mono_domain_get = (lp_mono_domain_get)GetProcAddress(monoHandle, "mono_domain_get");
+		mono_domain_assembly_open = (lp_mono_domain_assembly_open)GetProcAddress(monoHandle, "mono_domain_assembly_open");
+		mono_assembly_get_image = (lp_mono_assembly_get_image)GetProcAddress(monoHandle, "mono_assembly_get_image");
+		mono_class_from_name = (lp_mono_class_from_name)GetProcAddress(monoHandle, "mono_class_from_name");
+		mono_class_get_method_from_name = (lp_mono_class_get_method_from_name)GetProcAddress(monoHandle, "mono_class_get_method_from_name");
+		//mono_runtime_invoke = (lp_mono_runtime_invoke)GetProcAddress(monoHandle, "mono_runtime_invoke");
+		mono_thread_attach = (lp_mono_thread_attach)GetProcAddress(monoHandle, "mono_thread_attach");
+		mono_get_root_domain = (lp_mono_get_root_domain)GetProcAddress(monoHandle, "mono_get_root_domain");
+		mono_method_desc_search_in_image = (lp_mono_method_desc_search_in_image)GetProcAddress(monoHandle, "mono_method_desc_search_in_image");
+		mono_method_desc_free = (lp_mono_method_desc_free)GetProcAddress(monoHandle, "mono_method_desc_free");
+		mono_method_desc_new = (lp_mono_method_desc_new)GetProcAddress(monoHandle, "mono_method_desc_new");
+
+		mono_object_get_class = (lp_mono_object_get_class)GetProcAddress(monoHandle, "mono_object_get_class");
+		mono_object_to_string = (lp_mono_object_to_string)GetProcAddress(monoHandle, "mono_object_to_string");
+		mono_class_get_property_from_name = (lp_mono_class_get_property_from_name)GetProcAddress(monoHandle, "mono_class_get_property_from_name");
+		mono_property_get_get_method = (lp_mono_property_get_get_method)GetProcAddress(monoHandle, "mono_property_get_get_method");
+		mono_string_to_utf8 = (lp_mono_string_to_utf8)GetProcAddress(monoHandle, "mono_string_to_utf8");
+	}
+
+
+	DBGPRINT(L"Assembly %s is loading", ToWide(fname).c_str());
+
+	if (strstr(fname, "UnityEngine.dll"))
+	{
+		readyForInvoke = true;
+	}
+
+	DBGPRINT(L"%p %p", mono_domain_get(), mono_get_root_domain());
+
+	return mono_assembly_load_from_full(image, fname, status, refonly);;
 }
 #else
-
-void(*g_updateFunc)();
-
-extern "C" __declspec(dllexport) void SetUpdateFunc(void(*action)())
-{
-	g_updateFunc = action;
-}
 
 #include <metahost.h>
 #include <roapi.h>
@@ -303,17 +324,29 @@ ICLRRuntimeHost2* runtimeHost = NULL;
 
 typedef HRESULT(STDAPICALLTYPE* FnGetCLRRuntimeHost)(REFIID riid, IUnknown** pUnk);
 
-void(*origUpdateFunc)() = nullptr;
+#define PROXY_HOOK(addr, funcName) \
+	MH_CreateHook(addr, Hook_##funcName, (void**)&orig_##funcName);
 
-void UpdateFuncHook()
-{
-	if (g_updateFunc)
-	{
-		g_updateFunc();
+#define SETUP_PROXY(funcName) \
+	void (*orig_##funcName)(void*, void*, void*, void*) = nullptr; \
+\
+	void (*cust_##funcName)(); \
+\
+	extern "C" __declspec(dllexport) void Set_##funcName(void(*action)()) \
+	{ \
+		cust_##funcName = action; \
+	} \
+\
+	void Hook_##funcName(void* a, void* b, void* c, void* d) \
+	{ \
+		if (cust_##funcName) cust_##funcName(); \
+		return orig_##funcName(a, b, c, d); \
 	}
 
-	return origUpdateFunc();
-}
+SETUP_PROXY(Destroy);
+SETUP_PROXY(Start);
+SETUP_PROXY(Update);
+//SETUP_PROXY(OnGUI);
 
 void* il2cpp_init_hk(const char* name) 
 {
@@ -325,8 +358,8 @@ void* il2cpp_init_hk(const char* name)
 	//metaHost->GetRuntime(L"v4.0.30319", IID_ICLRRuntimeInfo, (LPVOID*)&runtimeInfo);
 	//runtimeInfo->GetInterface(CLSID_CLRRuntimeHost, IID_ICLRRuntimeHost, (LPVOID*)&runtimeHost);
 
-	AddDllDirectory(L"C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\3.0.0\\");
-	auto lib = LoadLibraryW(L"C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\3.0.0\\coreclr.dll");
+	AddDllDirectory(L"C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\3.1.3\\");
+	auto lib = LoadLibraryW(L"C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\3.1.3\\coreclr.dll");
 	assert(lib);
 
 	auto getClrRuntimeHost = (FnGetCLRRuntimeHost)GetProcAddress(lib, "GetCLRRuntimeHost");
@@ -339,7 +372,7 @@ void* il2cpp_init_hk(const char* name)
 	GetCurrentDirectoryW(std::size(asd), asd);
 	StringCchCatW(asd, std::size(asd), L"\\NekoClient");
 
-	const wchar_t* appPath = va(L"C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\3.0.0\\;%s", asd);
+	const wchar_t* appPath = va(L"C:\\Program Files\\dotnet\\shared\\Microsoft.NETCore.App\\3.1.3\\;%s", asd);
 
 	const wchar_t* property_keys[] = {
 		//L"TRUSTED_PLATFORM_ASSEMBLIES",
@@ -398,25 +431,21 @@ void* il2cpp_init_hk(const char* name)
 }
 #endif
 
-DWORD WINAPI OnAttach(LPVOID lParam)
-{
-	auto mod = GetModuleHandle("GameAssembly.dll");
-
-	while (true)
-	{
-		if (GetAsyncKeyState('K') & 0x1)
-		{
-			((void(__cdecl*)(void))(mod + 0x044D670))();
-		}
-
-		Sleep(100);
-	}
-}
+#include "Hooking.Patterns.h"
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
 {
 	if (ul_reason_for_call == DLL_PROCESS_ATTACH)
 	{
+		char moduleName[MAX_PATH];
+		GetModuleFileNameA(GetModuleHandle(NULL), moduleName, sizeof(moduleName));
+
+		if (strstr(moduleName, "UnityCrashHandler") != 0)
+		{
+			DBGPRINT(L"not attaching to crash handler");
+			return -1;
+		}
+
 		DBGPRINT(L"UnityAssemblyInjector attached");
 
 		std::ifstream file("assemblies.txt");
@@ -510,14 +539,21 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 		MH_Initialize();
 #if not defined (INJECT_TO_GAMEASSEMBLY)
 		MH_CreateHookApi(ToWide(assemblyName).c_str(), "mono_assembly_load_from_full", mono_assembly_load_from_full_hk, (void**)&mono_assembly_load_from_full);
+		MH_CreateHookApi(ToWide(assemblyName).c_str(), "mono_runtime_invoke", mono_runtime_invoke_hk, (void**)&mono_runtime_invoke);
 #else
 		auto gameAssembly = LoadLibraryA("GameAssembly.dll");
+		auto unityPlayerAssembly = LoadLibraryA("UnityPlayer.dll");
 
 		MH_CreateHookApi(L"GameAssembly.dll", "il2cpp_init", il2cpp_init_hk, (void**)&il2cpp_init);
-		auto unity = (char*)GetModuleHandle("UnityPlayer.dll");
-		MH_CreateHook(unity + 0x81C990, UpdateFuncHook, (void**)&origUpdateFunc);
-
-		CreateThread(nullptr, 0, OnAttach, hModule, 0, nullptr);
+		
+		//PROXY_HOOK(hook::module_pattern(unityPlayerAssembly, "40 53 48 83 ec 20 48 8b ? ? ? ? ? 48 8b d9 8b ca 48 33").count(1).get(0).get<char*>(), Destroy);
+		//PROXY_HOOK(hook::module_pattern(unityPlayerAssembly, "40 53 48 83 ec 20 80 b9 25 01 00 00 00").count(1).get(0).get<char*>(), Start);
+		//PROXY_HOOK(hook::module_pattern(unityPlayerAssembly, "48 89 5c 24 10 57 48 83 ec 20 48 8b 81 f0 00 00 00 8b fa").count(1).get(0).get<char*>(), Update);
+		//PROXY_HOOK(hook::module_pattern(unityPlayerAssembly, "c7 41 40 00 00 00 00 48 c7 41 04 ff ff ff ff").count(1).get(0).get<char*>(), OnGUI);
+		PROXY_HOOK((char*)gameAssembly + 0x1EC0780, Destroy); // atexit: 40 53 48 83 ec 20 48 8b ? ? ? ? ? 48 8b d9 8b ca 48 33
+		PROXY_HOOK((char*)gameAssembly + 0x1EC0960, Start); // Start: 40 53 48 83 ec 20 80 b9 25 01 00 00 00
+		PROXY_HOOK((char*)gameAssembly + 0x1ECE080, Update); // Update: 48 89 5c 24 10 57 48 83 ec 20 48 8b 81 f0 00 00 00 8b fa
+		//PROXY_HOOK((char*)gameAssembly + 0x1EC0590, OnGUI); // BeginOnGUI (orig first then proxy):  c7 41 40 00 00 00 00 48 c7 41 04 ff ff ff ff*/
 #endif
 		MH_EnableHook(MH_ALL_HOOKS);
 

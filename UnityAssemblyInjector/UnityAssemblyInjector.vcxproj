@@ -162,12 +162,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Hooking.Patterns.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="ShlwapiWrap.cpp" />
     <ClCompile Include="Utils.cpp" />
     <ClCompile Include="VersionWrap.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Hooking.Patterns.h" />
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
